@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#4f46e5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KhelKund">
+<title>KhelKund Arena</title>
+
+<!-- PWA manifest — required for "Add to Home Screen" install prompt -->
+<link rel="manifest" href="./manifest.json">
+
+<!-- Apple touch icon fallback (used when icon-192.png exists) -->
+<link rel="apple-touch-icon" href="./icon-192.png">
+
+<style>
+:root{
+  --p:#4f46e5;--pl:#818cf8;--p-light:#e0e7ff;
+  --booked:#ef4444;--booked-bg:#fef2f2;--booked-txt:#991b1b;
+  --free-bg:#f0fdf4;--free:#22c55e;
+  --part-bg:#fef3c7;--part-txt:#92400e;
+  --txt:#1e1e3a;--txt2:#6b7280;--txt3:#9ca3af;
+  --bg:#f4f4fa;--surface:#fff;--border:#e5e7eb;--border2:#d1d5db;
+  --radius:12px;--safe-b:env(safe-area-inset-bottom,0px);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --txt:#e8e8f0;--txt2:#9ca3af;--txt3:#6b7280;
+    --bg:#13131f;--surface:#1e1e2e;--border:#2d2d3f;--border2:#3d3d55;
+    --p-light:#312e81;--booked-bg:#2d0a0a;--booked-txt:#fca5a5;
+    --free-bg:#052e16;--part-bg:#2d1f00;--part-txt:#fcd34d;
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--txt);font-size:14px;min-height:100vh;-webkit-tap-highlight-color:transparent}
+
+/* ── App bar ── */
+.app-bar{
+  position:sticky;top:0;z-index:200;
+  background:var(--p);color:#fff;
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+.app-bar .logo{
+  width:34px;height:34px;border-radius:9px;flex-shrink:0;
+  background:rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;letter-spacing:-.5px;
+}
+.app-bar h1{font-size:16px;font-weight:700;flex:1}
+.sync-btn{
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  color:#fff;padding:6px 12px;border-radius:8px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.sync-btn:active{transform:scale(.97)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-green{background:#22c55e}.dot-amber{background:#f59e0b}.dot-red{background:#ef4444}
+
+/* ── Bottom nav ── */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:var(--surface);border-top:1px solid var(--border);
+  display:flex;
+  padding-bottom:var(--safe-b);
+}
+.nav-btn{
+  flex:1;padding:10px 4px 8px;border:none;background:none;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;color:var(--txt2);font-size:10px;font-weight:500;
+  transition:color .15s;
+}
+.nav-btn.active{color:var(--p)}
+.nav-btn svg{width:22px;height:22px;stroke-width:1.8}
+.nav-btn.active svg{stroke-width:2.2}
+
+/* ── Page panes ── */
+.page{display:none;padding:16px 16px calc(68px + var(--safe-b))}
+.page.active{display:block}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.card-title{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+
+/* ── Form elements ── */
+label{display:block;font-size:12px;color:var(--txt2);margin-bottom:4px;font-weight:500}
+input,select{
+  display:block;width:100%;
+  border:1px solid var(--border2);border-radius:8px;
+  padding:9px 11px;font-size:15px;
+  background:var(--bg);color:var(--txt);
+  -webkit-appearance:none;appearance:none;outline:none;
+  transition:border-color .15s;
+}
+input:focus,select:focus{border-color:var(--p);background:var(--surface)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%236b7280'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px}
+.field{margin-bottom:12px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* ── Buttons ── */
+.btn-primary{
+  display:block;width:100%;padding:14px;border:none;border-radius:var(--radius);
+  background:var(--p);color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+}
+.btn-primary:active{transform:scale(.98);opacity:.9}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;border:none;cursor:pointer}
+.pill-outline{background:none;border:1px solid var(--border2);color:var(--txt2)}
+.pill-active{background:var(--p);color:#fff;border:1px solid var(--p)}
+.pill-red{background:#fef2f2;color:var(--booked);border:1px solid #fecaca}
+
+/* ── Date nav ── */
+.date-nav{
+  display:flex;align-items:center;gap:0;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;margin-bottom:14px;
+}
+.dnav-btn{
+  border:none;background:none;color:var(--txt);padding:10px 14px;
+  font-size:18px;cursor:pointer;flex-shrink:0;
+}
+.dnav-btn:active{background:var(--bg)}
+.dnav-center{
+  flex:1;text-align:center;font-weight:600;font-size:14px;
+  border-left:1px solid var(--border);border-right:1px solid var(--border);
+  padding:10px 6px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+
+/* ── Date shortcuts ── */
+.date-pills{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.date-pill{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border2);background:none;cursor:pointer;color:var(--txt2)}
+.date-pill.active{background:var(--p);color:#fff;border-color:var(--p)}
+
+/* ── Stats bar ── */
+.stats-row{display:flex;gap:10px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px}
+.stat-card{
+  flex:1;min-width:80px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 10px;text-align:center;
+}
+.stat-val{font-size:20px;font-weight:800;color:var(--p)}
+.stat-lbl{font-size:10px;color:var(--txt3);font-weight:500;margin-top:2px}
+
+/* ── Availability grid ── */
+.sport-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.grid-section{margin-bottom:24px}
+.grid-section-title{
+  font-size:12px;font-weight:700;color:var(--txt2);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;
+}
+.grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius);border:1px solid var(--border)}
+.avail-grid{display:grid;background:var(--surface);min-width:660px}
+.grid-head{display:grid;grid-template-columns:var(--cols);border-bottom:1px solid var(--border)}
+.gh-cell{
+  padding:6px 2px;text-align:center;font-size:9px;font-weight:600;color:var(--txt2);
+  border-right:1px solid var(--border);
+}
+.gh-cell:last-child{border-right:none}
+.gh-court{background:var(--bg);font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.court-row{display:grid;grid-template-columns:var(--cols);border-top:1px solid var(--border)}
+.court-label{
+  padding:0 10px;display:flex;align-items:center;
+  font-size:12px;font-weight:700;
+  border-right:1px solid var(--border);
+  background:var(--bg);
+  position:sticky;left:0;z-index:1;
+}
+.slot{
+  height:42px;border-right:1px solid var(--border);
+  cursor:pointer;position:relative;overflow:hidden;
+  transition:filter .1s;
+}
+.slot:last-child{border-right:none}
+.slot.free{background:var(--free-bg)}
+.slot.free:hover{filter:brightness(.95)}
+.slot.booked{background:var(--booked-bg)}
+.slot.booked:hover{filter:brightness(.95)}
+.slot-label{
+  font-size:9px;font-weight:700;
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:2px;line-height:1.1;
+  pointer-events:none;
+}
+.slot.booked .slot-label{color:var(--booked-txt)}
+.slot.free .slot-label{color:#166534;font-size:8px}
+
+/* ── Booking list ── */
+.booking-item{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px;margin-bottom:10px;
+}
+.bi-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.bi-sport{font-weight:700;font-size:15px}
+.bi-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0}
+.mode-offline{background:#fef3c7;color:#92400e}
+.mode-hudle{background:#e0e7ff;color:#3730a3}
+.mode-playo{background:#dcfce7;color:#166534}
+.mode-district{background:#fce7f3;color:#9d174d}
+.bi-row{font-size:13px;color:var(--txt2);margin-bottom:3px}
+.bi-actions{display:flex;gap:8px;margin-top:8px;align-items:center}
+.sync-status{font-size:11px}
+.sync-pending{color:#f59e0b}
+.sync-done{color:#22c55e}
+
+/* ── Bottom sheet (booking form) ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:none}
+.overlay.show{display:block}
+.bottom-sheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:301;
+  background:var(--surface);
+  border-radius:20px 20px 0 0;
+  padding:0 16px calc(20px + var(--safe-b));
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.25,.8,.25,1);
+  max-height:92vh;overflow-y:auto;
+}
+.bottom-sheet.open{transform:translateY(0)}
+.sheet-handle{
+  width:40px;height:4px;background:var(--border2);border-radius:2px;
+  margin:12px auto 16px;
+}
+.sheet-title{font-size:17px;font-weight:700;margin-bottom:16px}
+.sheet-subtitle{font-size:12px;color:var(--txt2);margin-bottom:16px;margin-top:-10px}
+
+/* ── Tooltip ── */
+.tooltip{
+  position:fixed;z-index:500;
+  background:#1e1e3a;color:#fff;
+  border-radius:9px;padding:10px 14px;
+  font-size:12px;line-height:1.6;max-width:220px;
+  pointer-events:none;display:none;white-space:pre-line;
+}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:calc(72px + var(--safe-b));left:16px;right:16px;
+  background:#1e1e3a;color:#fff;padding:12px 16px;border-radius:10px;
+  font-size:14px;font-weight:500;text-align:center;
+  opacity:0;transform:translateY(6px);
+  transition:opacity .2s,transform .2s;z-index:400;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{background:#15803d}
+.toast.err{background:#b91c1c}
+
+/* ── Spinner ── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- App bar -->
+<div class="app-bar">
+  <div class="logo">KK</div>
+  <h1>KhelKund Arena</h1>
+  <button class="sync-btn" id="syncBtn" onclick="syncAll()">
+    <span class="dot dot-amber" id="syncDot"></span> Sync
+  </button>
+</div>
+
+<!-- Pages -->
+<div class="page active" id="pg-availability">
+  <!-- Date nav -->
+  <div class="date-nav">
+    <button class="dnav-btn" onclick="changeDate(-1)">‹</button>
+    <div class="dnav-center" onclick="goToday()">
+      <span id="dateLabel">—</span>
+      <span style="font-size:11px;color:var(--txt2);font-weight:400" id="dayLabel"></span>
+    </div>
+    <button class="dnav-btn" onclick="changeDate(+1)">›</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-val" id="s-bk">0</div><div class="stat-lbl">Bookings</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-sl">0</div><div class="stat-lbl">Slots booked</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-fr">0</div><div class="stat-lbl">Free slots</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-rv">₹0</div><div class="stat-lbl">Revenue</div></div>
+  </div>
+
+  <!-- Sport filter -->
+  <div class="sport-tabs" id="sportTabs">
+    <button class="pill pill-active" onclick="setSport('all',this)">All</button>
+    <button class="pill pill-outline" onclick="setSport('Badminton',this)">Badminton</button>
+    <button class="pill pill-outline" onclick="setSport('Pickleball',this)">Pickleball</button>
+  </div>
+
+  <!-- Grid -->
+  <div id="gridContainer"></div>
+
+  <!-- Legend -->
+  <div style="display:flex;gap:14px;margin-top:4px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt2)">
+      <div style="width:12px;height:12px;border-radius:3px;background:var(--free-bg);border:1px solid var(--free)"></div>Free — tap to book
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt2)">
+      <div style="width:12px;height:12px;border-radius:3px;background:var(--booked-bg);border:1px solid var(--booked)"></div>Booked — tap to view
+    </div>
+  </div>
+</div>
+
+<div class="page" id="pg-bookings">
+  <div id="bookingList">
+    <div style="text-align:center;padding:48px 20px;color:var(--txt2)">
+      <div style="font-size:40px;margin-bottom:12px">📋</div>
+      No bookings yet. Tap + to add one.
+    </div>
+  </div>
+</div>
+
+<div class="page" id="pg-stats">
+  <div class="card">
+    <div class="card-title">Today's summary</div>
+    <div class="stats-row" style="margin-bottom:0">
+      <div class="stat-card"><div class="stat-val" id="ss-today">0</div><div class="stat-lbl">Today</div></div>
+      <div class="stat-card"><div class="stat-val" id="ss-total">0</div><div class="stat-lbl">Total</div></div>
+      <div class="stat-card"><div class="stat-val" id="ss-unsynced">0</div><div class="stat-lbl">Pending sync</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Today's revenue</div>
+    <div style="font-size:32px;font-weight:800;color:var(--p)" id="ss-revenue">₹0</div>
+    <div style="font-size:12px;color:var(--txt2);margin-top:4px">Across all courts</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Courts active today</div>
+    <div id="ss-courts" style="font-size:13px;color:var(--txt2);line-height:1.8">—</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Booking sources today</div>
+    <div id="ss-sources" style="font-size:13px;color:var(--txt2);line-height:1.8">—</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Sheet sync</div>
+    <div id="ss-pull" style="font-size:13px;color:var(--txt2)">Sheet last fetched: Never</div>
+    <div style="font-size:12px;color:var(--txt3);margin-top:4px">Auto-refreshes every 5 minutes when online. Tap Sync to force.</div>
+  </div>
+  <button class="btn-primary" style="background:#ef4444;margin-top:8px" onclick="clearAll()">Clear all local data</button>
+</div>
+
+<!-- Bottom nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="switchPage('availability',this)" id="nav-availability">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Schedule
+  </button>
+  <button class="nav-btn" style="position:relative" onclick="openAddForm()">
+    <div style="width:48px;height:48px;background:var(--p);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:300;margin-bottom:-8px;box-shadow:0 4px 12px rgba(79,70,229,.4)">+</div>
+    Add
+  </button>
+  <button class="nav-btn" onclick="switchPage('bookings',this)" id="nav-bookings">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>
+    Bookings
+  </button>
+  <button class="nav-btn" onclick="switchPage('stats',this)" id="nav-stats">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Stats
+  </button>
+</nav>
+
+<!-- Overlay + Bottom sheet (booking form) -->
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="bottom-sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="sheetTitle">New Booking</div>
+  <div class="sheet-subtitle" id="sheetSub"></div>
+
+  <div class="row2">
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="f-date">
+    </div>
+    <div class="field">
+      <label>Sport / Court</label>
+      <select id="f-court">
+        <option value="">Select court</option>
+        <option>Badminton (C1)</option><option>Badminton (C2)</option>
+        <option>Badminton (C3)</option><option>Badminton (C4)</option>
+        <option>Badminton (C5)</option><option>Badminton (C6)</option>
+        <option>Pickleball (C1)</option><option>Pickleball (C2)</option>
+        <option>Pickleball (C3)</option><option>Pickleball (C4)</option>
+      </select>
+    </div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>Start time</label><input type="time" id="f-start"></div>
+    <div class="field"><label>End time</label><input type="time" id="f-end"></div>
+  </div>
+
+  <div class="field"><label>Name *</label><input type="text" id="f-name" placeholder="Player name"></div>
+  <div class="field"><label>Phone</label><input type="tel" id="f-phone" placeholder="10-digit number" maxlength="10"></div>
+
+  <div class="row2">
+    <div class="field">
+      <label>Mode</label>
+      <select id="f-mode">
+        <option value="OFFLINE">Offline</option>
+        <option value="HUDLE">Hudle</option>
+        <option value="PLAYO">Playo</option>
+        <option value="DISTRICT">District</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Payment</label>
+      <select id="f-payment">
+        <option value="UPI">UPI</option>
+        <option value="CASH">Cash</option>
+        <option value="ONLINE">Online</option>
+      </select>
+    </div>
+  </div>
+  <div class="row3">
+    <div class="field"><label>Amount (₹)</label><input type="number" id="f-amount" placeholder="0" min="0"></div>
+    <div class="field"><label>Shoes</label><input type="number" id="f-shoes" placeholder="0" min="0"></div>
+    <div class="field"><label>Rackets</label><input type="number" id="f-rackets" placeholder="0" min="0"></div>
+  </div>
+
+  <button class="btn-primary" onclick="saveBooking()" id="saveBtn">Save Booking</button>
+  <div style="height:8px"></div>
+</div>
+
+<!-- Booking detail sheet -->
+<div class="overlay" id="detailOverlay" onclick="closeDetail()"></div>
+<div class="bottom-sheet" id="detailSheet">
+  <div class="sheet-handle"></div>
+  <div id="detailContent"></div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────
+// Paste your Apps Script Web App URL here after deploying
+const WEBAPP_URL = "";
+
+const COURTS_CONFIG = [
+  {sport:"Badminton", courts:["C1","C2","C3","C4","C5","C6"]},
+  {sport:"Pickleball",courts:["C1","C2","C3","C4"]},
+];
+
+// 30-min slots 05:00 → 01:00 (next day)
+const SLOTS = [];
+for(let h=5;h<24;h++) for(let m=0;m<60;m+=30) SLOTS.push(p2(h)+":"+p2(m));
+SLOTS.push("00:00","00:30","01:00");
+function p2(n){return String(n).padStart(2,"0")}
+
+// ── State ─────────────────────────────────────────────────────────
+let viewDate = new Date();
+let sportFilter = "all";
+// bookings = local entries (offline-first)
+// sheetBookings = pulled from Google Sheet (read display only, keyed by "sheet_N")
+let bookings = JSON.parse(localStorage.getItem("kk_v2")||"[]");
+let sheetBookings = JSON.parse(localStorage.getItem("kk_sheet")||"[]");
+let lastPullTime = parseInt(localStorage.getItem("kk_last_pull")||"0");
+const PULL_INTERVAL_MS = 5 * 60 * 1000; // re-pull every 5 minutes
+
+// Merged view: sheet data + local data (local wins on conflict)
+function allBookings(){
+  // Deduplicate: local entries override sheet entries with same date+sport+court+start+name
+  const localKeys = new Set(bookings.map(b => `${b.date}|${b.sport}|${b.court}|${b.start}|${(b.name||"").toLowerCase()}`));
+  const filteredSheet = sheetBookings.filter(b => !localKeys.has(`${b.date}|${b.sport}|${b.court}|${b.start}|${(b.name||"").toLowerCase()}`));
+  return [...filteredSheet, ...bookings];
+}
+
+// ── Time helpers ──────────────────────────────────────────────────
+function t2m(t){
+  if(!t||!t.includes(":")) return -1;
+  let [h,m]=t.split(":").map(Number);
+  if(h<5) h+=24; // post-midnight
+  return h*60+m;
+}
+function slotsCovered(s,e){
+  if(!s) return [];
+  const sm=t2m(s), em=t2m(e);
+  return SLOTS.filter(sl=>{
+    const a=t2m(sl);
+    if(em<=sm||!e) return a>=sm;
+    return a>=sm && a<em;
+  });
+}
+
+// ── Nav ───────────────────────────────────────────────────────────
+function switchPage(name, btn){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("pg-"+name).classList.add("active");
+  if(btn) btn.classList.add("active");
+  if(name==="bookings") renderList();
+  if(name==="stats") renderStats();
+  if(name==="availability") renderGrid();
+}
+
+// ── Date navigation ───────────────────────────────────────────────
+function updateDateLabel(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const vd=new Date(viewDate);vd.setHours(0,0,0,0);
+  const diff=Math.round((vd-today)/86400000);
+  const lbl=diff===0?"Today":diff===1?"Tomorrow":diff===-1?"Yesterday":
+    viewDate.toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+  document.getElementById("dateLabel").textContent=lbl;
+  document.getElementById("dayLabel").textContent=
+    diff===0||diff===1||diff===-1?viewDate.toLocaleDateString("en-IN",{weekday:"long"}):
+    viewDate.toLocaleDateString("en-IN",{weekday:"short",year:"numeric"});
+}
+function changeDate(d){viewDate.setDate(viewDate.getDate()+d);updateDateLabel();renderGrid()}
+function goToday(){viewDate=new Date();updateDateLabel();renderGrid()}
+function setSport(s,btn){
+  sportFilter=s;
+  document.querySelectorAll(".sport-tabs .pill").forEach(b=>{b.className="pill pill-outline"});
+  btn.className="pill pill-active";
+  renderGrid();
+}
+
+// ── Grid rendering ────────────────────────────────────────────────
+function renderGrid(){
+  const ds=dateStr(viewDate);
+  const dayBk=allBookings().filter(b=>b.date===ds);
+  updateSummary(dayBk);
+
+  const groups=COURTS_CONFIG.filter(g=>sportFilter==="all"||g.sport===sportFilter);
+  const container=document.getElementById("gridContainer");
+  container.innerHTML="";
+
+  // Show 5:00 to 23:30 — 38 slots
+  const vis=SLOTS.slice(0,38);
+  const cols="90px "+vis.map(()=>"32px").join(" ");
+
+  groups.forEach(grp=>{
+    const sec=document.createElement("div");
+    sec.className="grid-section";
+
+    const title=document.createElement("div");
+    title.className="grid-section-title";
+    title.textContent=grp.sport+" Courts";
+    sec.appendChild(title);
+
+    const wrap=document.createElement("div");
+    wrap.className="grid-wrap";
+    const grid=document.createElement("div");
+    grid.className="avail-grid";
+    grid.style.setProperty("--cols",cols);
+
+    // Header
+    const head=document.createElement("div");
+    head.className="grid-head";
+    head.style.gridTemplateColumns=cols;
+    const corner=document.createElement("div");
+    corner.className="gh-cell gh-court";
+    corner.textContent="Court";
+    head.appendChild(corner);
+    vis.forEach(sl=>{
+      const c=document.createElement("div");
+      c.className="gh-cell";
+      c.textContent=sl.replace(":00","").replace(":30","·");
+      head.appendChild(c);
+    });
+    grid.appendChild(head);
+
+    // Rows
+    grp.courts.forEach(court=>{
+      const courtBk=dayBk.filter(b=>
+        (b.sport||"").toLowerCase()===grp.sport.toLowerCase() &&
+        (b.court||"").toUpperCase()===court
+      );
+      const slotMap={};
+      vis.forEach(sl=>slotMap[sl]={status:"free",booking:null});
+      courtBk.forEach(b=>{
+        slotsCovered(b.start,b.end).forEach(sl=>{
+          if(slotMap[sl]) slotMap[sl]={status:"booked",booking:b};
+        });
+      });
+
+      const row=document.createElement("div");
+      row.className="court-row";
+      row.style.gridTemplateColumns=cols;
+      const lbl=document.createElement("div");
+      lbl.className="court-label";
+      lbl.textContent=court;
+      row.appendChild(lbl);
+
+      vis.forEach(sl=>{
+        const {status,booking:bk}=slotMap[sl];
+        const cell=document.createElement("div");
+        cell.className="slot "+status;
+        if(status==="booked"&&bk){
+          const l=document.createElement("div");
+          l.className="slot-label";
+          l.textContent=(bk.name||"?").slice(0,4);
+          cell.appendChild(l);
+          cell.addEventListener("mouseenter",e=>tip(e,bk));
+          cell.addEventListener("mouseleave",hideTip);
+          cell.addEventListener("click",()=>showDetail(bk));
+        } else {
+          cell.addEventListener("click",()=>{
+            openAddForm();
+            setTimeout(()=>{
+              document.getElementById("f-date").value=ds;
+              const sel=document.getElementById("f-court");
+              const opt=grp.sport+" ("+court+")";
+              for(let o of sel.options) if(o.value===opt){sel.value=opt;break}
+              document.getElementById("f-start").value=sl;
+              const em=t2m(sl)+60;
+              document.getElementById("f-end").value=p2(Math.floor(em/60)%24)+":"+p2(em%60);
+              document.getElementById("sheetSub").textContent=`Prefilled: ${grp.sport} ${court} at ${sl}`;
+            },100);
+          });
+        }
+        row.appendChild(cell);
+      });
+      grid.appendChild(row);
+    });
+
+    wrap.appendChild(grid);
+    sec.appendChild(wrap);
+    container.appendChild(sec);
+  });
+}
+
+function updateSummary(dayBk){
+  let slots=0;
+  dayBk.forEach(b=>slots+=slotsCovered(b.start,b.end).length);
+  const total=COURTS_CONFIG.reduce((s,g)=>s+g.courts.length,0)*38;
+  const rev=dayBk.reduce((s,b)=>s+(+b.amount||0),0);
+  document.getElementById("s-bk").textContent=dayBk.length;
+  document.getElementById("s-sl").textContent=slots;
+  document.getElementById("s-fr").textContent=Math.max(0,total-slots);
+  document.getElementById("s-rv").textContent="₹"+rev.toLocaleString("en-IN");
+}
+
+// ── Booking detail sheet ──────────────────────────────────────────
+function showDetail(bk){
+  const modeCls={OFFLINE:"mode-offline",HUDLE:"mode-hudle",PLAYO:"mode-playo",DISTRICT:"mode-district"}[bk.mode]||"mode-offline";
+  const sport=bk.sport+(bk.court?" ("+bk.court+")":"");
+  document.getElementById("detailContent").innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="width:44px;height:44px;border-radius:50%;background:var(--p-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--p);flex-shrink:0">
+        ${(bk.name||"?").slice(0,2).toUpperCase()}
+      </div>
+      <div>
+        <div style="font-size:17px;font-weight:700">${bk.name||"—"}</div>
+        <div style="font-size:12px;color:var(--txt2)">${bk.phone||"No phone"}</div>
+      </div>
+      <span class="bi-badge ${modeCls}" style="margin-left:auto">${bk.mode||"—"}</span>
+    </div>
+    <div style="background:var(--bg);border-radius:10px;padding:14px;display:grid;gap:10px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--txt2);font-size:13px">Sport</span><span style="font-weight:600;font-size:13px">${sport}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--txt2);font-size:13px">Date</span><span style="font-weight:600;font-size:13px">${bk.date}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--txt2);font-size:13px">Time</span><span style="font-weight:600;font-size:13px">${bk.start||"—"} – ${bk.end||"—"}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--txt2);font-size:13px">Amount</span><span style="font-weight:600;font-size:13px;color:var(--p)">₹${bk.amount||0}</span></div>
+      ${bk.shoes?`<div style="display:flex;justify-content:space-between"><span style="color:var(--txt2);font-size:13px">Shoes rented</span><span style="font-size:13px">${bk.shoes}</span></div>`:""}
+      ${bk.rackets?`<div style="display:flex;justify-content:space-between"><span style="color:var(--txt2);font-size:13px">Rackets rented</span><span style="font-size:13px">${bk.rackets}</span></div>`:""}
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--txt2);font-size:13px">Payment</span><span style="font-size:13px">${bk.payment||"—"}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--txt2);font-size:13px">Sync</span><span style="font-size:13px;color:${bk.synced?"#22c55e":"#f59e0b"}">${bk.synced?"✓ Synced":"○ Pending"}</span></div>
+    </div>
+    <button class="btn-primary" style="background:#ef4444" onclick="deleteBooking(${bk.id})">Delete Booking</button>
+    <div style="height:8px"></div>
+  `;
+  document.getElementById("detailOverlay").classList.add("show");
+  document.getElementById("detailSheet").classList.add("open");
+}
+function closeDetail(){
+  document.getElementById("detailOverlay").classList.remove("show");
+  document.getElementById("detailSheet").classList.remove("open");
+}
+function deleteBooking(id){
+  if(!confirm("Delete this booking?")) return;
+  bookings=bookings.filter(b=>b.id!==id);
+  save();renderGrid();renderList();renderStats();closeDetail();
+  toast("Booking deleted","ok");
+}
+
+// ── Booking form ──────────────────────────────────────────────────
+function openAddForm(){
+  document.getElementById("sheetTitle").textContent="New Booking";
+  document.getElementById("sheetSub").textContent="";
+  document.getElementById("f-date").value=dateStr(viewDate);
+  document.getElementById("overlay").classList.add("show");
+  document.getElementById("sheet").classList.add("open");
+}
+function closeSheet(){
+  document.getElementById("overlay").classList.remove("show");
+  document.getElementById("sheet").classList.remove("open");
+}
+
+function saveBooking(){
+  const name=document.getElementById("f-name").value.trim();
+  const start=document.getElementById("f-start").value;
+  const date=document.getElementById("f-date").value;
+  if(!name||!start||!date){toast("Fill in Date, Start time & Name","err");return}
+
+  const courtVal=document.getElementById("f-court").value;
+  const [sport,courtPart]= courtVal.includes("(") ? courtVal.split(" (") : [courtVal,""];
+  const court=(courtPart||"").replace(")","");
+
+  const bk={
+    id:Date.now(),date,
+    sport:sport.trim(),court,
+    start,end:document.getElementById("f-end").value,
+    name,phone:document.getElementById("f-phone").value,
+    mode:document.getElementById("f-mode").value,
+    payment:document.getElementById("f-payment").value,
+    amount:+document.getElementById("f-amount").value||0,
+    shoes:+document.getElementById("f-shoes").value||0,
+    rackets:+document.getElementById("f-rackets").value||0,
+    synced:false,createdAt:new Date().toISOString(),
+  };
+  bookings.push(bk);save();
+  closeSheet();resetForm();
+  renderGrid();
+  toast("Booking saved for "+name+" ✓","ok");
+  updateSyncDot();
+  requestBackgroundSync();
+}
+
+function resetForm(){
+  ["f-name","f-phone","f-amount","f-shoes","f-rackets","f-start","f-end"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("f-court").value="";
+  document.getElementById("f-mode").value="OFFLINE";
+  document.getElementById("f-payment").value="UPI";
+}
+
+// ── Booking list ──────────────────────────────────────────────────
+function renderList(){
+  const el=document.getElementById("bookingList");
+  const all=allBookings();
+  if(!all.length){
+    el.innerHTML=`<div style="text-align:center;padding:48px 20px;color:var(--txt2)"><div style="font-size:40px;margin-bottom:12px">📋</div>No bookings yet.</div>`;
+    return;
+  }
+  const sorted=[...all].sort((a,b)=>b.date.localeCompare(a.date)||(b.start||"").localeCompare(a.start||""));
+  el.innerHTML=sorted.map(b=>{
+    const sport=b.sport+(b.court?" ("+b.court+")":"");
+    const cls={OFFLINE:"mode-offline",HUDLE:"mode-hudle",PLAYO:"mode-playo",DISTRICT:"mode-district"}[b.mode]||"mode-offline";
+    const isSheet=String(b.id||"").startsWith("sheet_");
+    const syncLabel=isSheet?"✓ From sheet":b.synced?"✓ Synced":"○ Pending sync";
+    const syncColor=isSheet||b.synced?"#22c55e":"#f59e0b";
+    return `<div class="booking-item" onclick="showDetail(${JSON.stringify(b).replace(/"/g,'&quot;')})">
+      <div class="bi-header">
+        <div class="bi-sport">${sport}</div>
+        <span class="bi-badge ${cls}">${b.mode}</span>
+      </div>
+      <div class="bi-row" style="font-weight:600;color:var(--p)">${b.start}${b.end?" – "+b.end:""}</div>
+      <div class="bi-row">${b.name}${b.phone?" · "+b.phone:""}</div>
+      <div class="bi-row">${b.date} · ${b.amount?"₹"+b.amount:"—"}</div>
+      <div style="font-size:11px;color:${syncColor};margin-top:6px">${syncLabel}</div>
+    </div>`;
+  }).join("");
+}
+
+// ── Stats page ────────────────────────────────────────────────────
+function renderStats(){
+  const ds=dateStr(new Date());
+  const all=allBookings();
+  const today=all.filter(b=>b.date===ds);
+  const unsynced=bookings.filter(b=>!b.synced);
+  const rev=today.reduce((s,b)=>s+(+b.amount||0),0);
+  const courts=[...new Set(today.filter(b=>b.court).map(b=>b.sport+" "+b.court))].join(", ")||"None";
+  const modes={};
+  today.forEach(b=>{modes[b.mode]=(modes[b.mode]||0)+1});
+  const modeStr=Object.entries(modes).map(([k,v])=>`${k}: ${v}`).join(", ")||"—";
+  const pullAgo=lastPullTime?Math.round((Date.now()-lastPullTime)/60000)+"m ago":"Never";
+
+  document.getElementById("ss-today").textContent=today.length;
+  document.getElementById("ss-total").textContent=all.length;
+  document.getElementById("ss-unsynced").textContent=unsynced.length;
+  document.getElementById("ss-revenue").textContent="₹"+rev.toLocaleString("en-IN");
+  document.getElementById("ss-courts").textContent=courts;
+  document.getElementById("ss-sources").textContent=modeStr;
+  const pullEl=document.getElementById("ss-pull");
+  if(pullEl) pullEl.textContent="Sheet last fetched: "+pullAgo;
+}
+
+// ── Two-way Sync ──────────────────────────────────────────────────
+async function syncAll(){
+  if(!WEBAPP_URL){toast("Set WEBAPP_URL to enable sync","err");return}
+  const btn=document.getElementById("syncBtn");
+  btn.innerHTML=`<span class="spinner"></span> Syncing…`;btn.disabled=true;
+
+  let pushOk=false, pullOk=false;
+
+  // 1. PUSH: send unsynced local bookings to sheet
+  const pending=bookings.filter(b=>!b.synced);
+  if(pending.length){
+    try{
+      const r=await fetch(WEBAPP_URL,{
+        method:"POST",
+        body:JSON.stringify({bookings:pending}),
+        headers:{"Content-Type":"application/json"},
+      });
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const res=await r.json();
+      if(res.ok){
+        bookings=bookings.map(b=>pending.find(u=>u.id===b.id)?{...b,synced:true}:b);
+        save();
+        pushOk=true;
+      }
+    }catch(err){
+      console.error("Push failed:",err);
+    }
+  } else {
+    pushOk=true; // nothing to push
+  }
+
+  // 2. PULL: fetch sheet data for ±30 days window
+  try{
+    const from=dateStr(daysAgo(90)), to=dateStr(daysAhead(30));
+    const url=`${WEBAPP_URL}?action=getBookings&from=${from}&to=${to}`;
+    const r=await fetch(url);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const res=await r.json();
+    if(res.ok && Array.isArray(res.bookings)){
+      sheetBookings=res.bookings;
+      localStorage.setItem("kk_sheet",JSON.stringify(sheetBookings));
+      lastPullTime=Date.now();
+      localStorage.setItem("kk_last_pull",String(lastPullTime));
+      pullOk=true;
+    }
+  }catch(err){
+    console.error("Pull failed:",err);
+  }
+
+  btn.disabled=false;
+  updateSyncDot();
+  btn.innerHTML=`<span class="dot" id="syncDot"></span> Sync`;
+  updateSyncDot();
+  renderGrid();
+  renderList();
+
+  if(pushOk && pullOk){
+    const msg=pending.length?`Pushed ${pending.length}, pulled ${sheetBookings.length} bookings ✓`:`Pulled ${sheetBookings.length} bookings from sheet ✓`;
+    toast(msg,"ok");
+  } else if(pullOk){
+    toast(`Pulled from sheet. Push failed — will retry.`,"err");
+  } else if(pushOk){
+    toast("Pushed OK. Pull failed — working offline.","err");
+  } else {
+    toast("Sync failed — working offline","err");
+  }
+}
+
+// Auto-pull on load (silent, background)
+async function autoPull(){
+  if(!WEBAPP_URL) return;
+  if(Date.now()-lastPullTime < PULL_INTERVAL_MS) return; // already fresh
+  try{
+    const from=dateStr(daysAgo(90)), to=dateStr(daysAhead(30));
+    const r=await fetch(`${WEBAPP_URL}?action=getBookings&from=${from}&to=${to}`);
+    if(!r.ok) return;
+    const res=await r.json();
+    if(res.ok && Array.isArray(res.bookings)){
+      sheetBookings=res.bookings;
+      localStorage.setItem("kk_sheet",JSON.stringify(sheetBookings));
+      lastPullTime=Date.now();
+      localStorage.setItem("kk_last_pull",String(lastPullTime));
+      renderGrid();
+      renderList();
+      updateSyncDot();
+    }
+  }catch{}
+}
+
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d}
+function daysAhead(n){const d=new Date();d.setDate(d.getDate()+n);return d}
+
+// ── Tooltip (desktop hover) ───────────────────────────────────────
+function tip(e,bk){
+  const t=document.getElementById("tooltip");
+  t.textContent=[bk.name,`${bk.start}–${bk.end}`,bk.mode,bk.amount?"₹"+bk.amount:""].filter(Boolean).join("\n");
+  t.style.display="block";posTip(e);
+}
+function hideTip(){document.getElementById("tooltip").style.display="none"}
+document.addEventListener("mousemove",e=>{if(document.getElementById("tooltip").style.display!=="none") posTip(e)});
+function posTip(e){
+  const t=document.getElementById("tooltip");
+  let x=e.clientX+12,y=e.clientY+12;
+  if(x+220>window.innerWidth) x=e.clientX-220;
+  if(y+100>window.innerHeight) y=e.clientY-110;
+  t.style.left=x+"px";t.style.top=y+"px";
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function dateStr(d){return d.toISOString().slice(0,10)}
+function save(){localStorage.setItem("kk_v2",JSON.stringify(bookings))}
+function clearAll(){
+  if(!confirm("Delete ALL local data? Sheet data will be re-fetched on next sync.")) return;
+  bookings=[];sheetBookings=[];lastPullTime=0;
+  localStorage.removeItem("kk_v2");localStorage.removeItem("kk_sheet");localStorage.removeItem("kk_last_pull");
+  renderGrid();renderList();renderStats();toast("Cleared","ok");
+}
+
+function updateSyncDot(){
+  const n=bookings.filter(b=>!b.synced).length;
+  const el=document.getElementById("syncDot");
+  if(el) el.className="dot "+(n===0&&sheetBookings.length>0?"dot-green":n===0?"dot-amber":"dot-amber");
+  // green = synced + have sheet data, amber = pending push or no sheet data yet
+  if(el) el.className="dot "+(n>0?"dot-amber":lastPullTime?"dot-green":"dot-amber");
+}
+
+let _toast;
+function toast(msg,type){
+  const el=document.getElementById("toast");
+  el.textContent=msg;
+  el.className="toast show"+(type==="ok"?" ok":type==="err"?" err":"");
+  clearTimeout(_toast);_toast=setTimeout(()=>el.classList.remove("show"),3000);
+}
+
+// ── Boot ─────────────────────────────────────────────────────────
+updateDateLabel();
+renderGrid();
+updateSyncDot();
+autoPull(); // silent background pull on page load
+
+// Service worker for offline
+
+// ── Register service worker (only on real hosted origins, not previews) ──
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  const loc = window.location;
+  // Skip registration when running inside an iframe preview (e.g. localhost or non-https)
+  const isRealHost = loc.protocol === 'https:' && loc.pathname !== '/';
+  if(!isRealHost) return;
+  navigator.serviceWorker.register('./sw.js', { scope: './' })
+    .then(() => {
+      navigator.serviceWorker.addEventListener('message', e => {
+        if(e.data?.type === 'SYNC_COMPLETE'){ renderGrid(); renderList(); updateSyncDot(); }
+      });
+    })
+    .catch(() => {});
+})();
+
+// ── Store WEBAPP_URL in IndexedDB so SW background sync can use it ──
+async function persistWebAppUrl(){
+  if(!WEBAPP_URL) return;
+  try{
+    const req=indexedDB.open("kk-sw",1);
+    req.onupgradeneeded=e=>e.target.result.createObjectStore("kv");
+    req.onsuccess=e=>{
+      const db=e.target.result;
+      const tx=db.transaction("kv","readwrite");
+      tx.objectStore("kv").put(WEBAPP_URL,"webapp_url");
+    };
+  }catch{}
+}
+
+// Register background sync tag when there are pending bookings
+async function requestBackgroundSync(){
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    if('sync' in reg) await reg.sync.register('kk-sync');
+  }catch{}
+}
+
+// Call on boot
+persistWebAppUrl();
+</script>
+</body>
+</html>
