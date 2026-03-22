@@ -908,10 +908,8 @@ function hideTip(){document.getElementById("tooltip").style.display="none"}
 
 function tipConflict(e,bks){
   const t=document.getElementById("tooltip");
-  t.textContent="⚠ "+bks.length+" bookings on this slot:
-"+
-    bks.map(b=>(b.name||"?")+" ("+b.mode+")").join("
-");
+  t.textContent="⚠ "+bks.length+" bookings on this slot:"+
+    bks.map(b=>(b.name||"?")+" ("+b.mode+")").join("");
   t.style.display="block";posTip(e);
 }
 
