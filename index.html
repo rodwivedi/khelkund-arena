@@ -182,6 +182,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .slot.free:hover{filter:brightness(.95)}
 .slot.booked{background:var(--booked-bg)}
 .slot.booked:hover{filter:brightness(.95)}
+.slot.conflict{background:#fef3c7;border-right:1px solid #f59e0b}
+.slot.conflict:hover{filter:brightness(.95)}
+.slot.conflict .slot-label{color:#92400e;font-size:10px;font-weight:800}
 .slot-label{
   font-size:9px;font-weight:700;
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -473,17 +476,26 @@ function allBookings(){
 
 // ── Time helpers ──────────────────────────────────────────────────
 function t2m(t){
-  if(!t||!t.includes(":")) return -1;
-  let [h,m]=t.split(":").map(Number);
-  if(h<5) h+=24; // post-midnight
+  if(!t) return -1;
+  if(t instanceof Date) t=p2(t.getHours())+":"+p2(t.getMinutes());
+  t=String(t).trim();
+  const parts=t.split(":");
+  if(parts.length<2) return -1;
+  let h=parseInt(parts[0]),m=parseInt(parts[1]);
+  if(isNaN(h)||isNaN(m)) return -1;
+  if(h<5) h+=24;
   return h*60+m;
 }
 function slotsCovered(s,e){
   if(!s) return [];
-  const sm=t2m(s), em=t2m(e);
+  const sm=t2m(s);
+  if(sm<0) return [];
+  const em=t2m(e);
   return SLOTS.filter(sl=>{
     const a=t2m(sl);
-    if(em<=sm||!e) return a>=sm;
+    if(a<0) return false;
+    if(!e||em<0) return a===sm;
+    if(em<=sm) return a>=sm;
     return a>=sm && a<em;
   });
 }
@@ -572,11 +584,17 @@ function renderGrid(){
         (b.court||"").toUpperCase()===court
       );
       const slotMap={};
-      vis.forEach(sl=>slotMap[sl]={status:"free",booking:null});
+      vis.forEach(sl=>slotMap[sl]={status:"free",bookings:[]});
       courtBk.forEach(b=>{
         slotsCovered(b.start,b.end).forEach(sl=>{
-          if(slotMap[sl]) slotMap[sl]={status:"booked",booking:b};
+          if(slotMap[sl]) slotMap[sl].bookings.push(b);
         });
+      });
+      vis.forEach(sl=>{
+        const bks=slotMap[sl].bookings;
+        if(bks.length===0) slotMap[sl].status="free";
+        else if(bks.length===1) slotMap[sl].status="booked";
+        else slotMap[sl].status="conflict";
       });
 
       const row=document.createElement("div");
@@ -588,7 +606,8 @@ function renderGrid(){
       row.appendChild(lbl);
 
       vis.forEach(sl=>{
-        const {status,booking:bk}=slotMap[sl];
+        const {status,bookings:bks}=slotMap[sl];
+        const bk=bks[0]||null;
         const cell=document.createElement("div");
         cell.className="slot "+status;
         if(status==="booked"&&bk){
@@ -599,6 +618,14 @@ function renderGrid(){
           cell.addEventListener("mouseenter",e=>tip(e,bk));
           cell.addEventListener("mouseleave",hideTip);
           cell.addEventListener("click",()=>showDetail(bk));
+        } else if(status==="conflict"){
+          const l=document.createElement("div");
+          l.className="slot-label";
+          l.textContent="!"+bks.length;
+          cell.appendChild(l);
+          cell.addEventListener("mouseenter",e=>tipConflict(e,bks));
+          cell.addEventListener("mouseleave",hideTip);
+          cell.addEventListener("click",()=>showConflict(bks));
         } else {
           cell.addEventListener("click",()=>{
             openAddForm();
@@ -878,6 +905,44 @@ function tip(e,bk){
   t.style.display="block";posTip(e);
 }
 function hideTip(){document.getElementById("tooltip").style.display="none"}
+
+function tipConflict(e,bks){
+  const t=document.getElementById("tooltip");
+  t.textContent="⚠ "+bks.length+" bookings on this slot:
+"+
+    bks.map(b=>(b.name||"?")+" ("+b.mode+")").join("
+");
+  t.style.display="block";posTip(e);
+}
+
+function showConflict(bks){
+  document.getElementById("detailContent").innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <div style="width:36px;height:36px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:18px">⚠️</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#92400e">Duplicate Booking</div>
+        <div style="font-size:12px;color:var(--txt2)">${bks.length} bookings overlap on this slot</div>
+      </div>
+    </div>
+    ${bks.map((b,i)=>{
+      const cls={OFFLINE:"mode-offline",HUDLE:"mode-hudle",PLAYO:"mode-playo",DISTRICT:"mode-district"}[b.mode]||"mode-offline";
+      const isSheet=String(b.id||"").startsWith("sheet_");
+      return \`<div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px;border:1px solid #fcd34d">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:700">${b.name||"—"}</span>
+          <span class="bi-badge \${cls}">\${b.mode}</span>
+        </div>
+        <div style="font-size:12px;color:var(--txt2)">\${b.start||"—"} – \${b.end||"—"} · \${b.phone||"No phone"}</div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:2px">\${b.amount?"₹"+b.amount:""}\${b.payment?" · "+b.payment:""}</div>
+        <div style="font-size:11px;margin-top:6px;color:\${isSheet?"#22c55e":"#f59e0b"}">\${isSheet?"✓ From sheet":b.synced?"✓ Synced":"○ Pending sync"}</div>
+        \${!isSheet?\`<button onclick="deleteBooking(\${b.id})" style="margin-top:8px;padding:6px 12px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer">Delete</button>\`:""}
+      </div>\`;
+    }).join("")}
+    <div style="height:8px"></div>
+  `;
+  document.getElementById("detailOverlay").classList.add("show");
+  document.getElementById("detailSheet").classList.add("open");
+}
 document.addEventListener("mousemove",e=>{if(document.getElementById("tooltip").style.display!=="none") posTip(e)});
 function posTip(e){
   const t=document.getElementById("tooltip");
