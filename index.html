@@ -542,6 +542,16 @@ function renderGrid(){
   const container=document.getElementById("gridContainer");
   container.innerHTML="";
 
+  // Show empty state if no bookings and not yet synced
+  if(dayBk.length===0 && sheetBookings.length===0 && WEBAPP_URL){
+    const empty=document.createElement("div");
+    empty.style.cssText="text-align:center;padding:40px 20px;color:var(--txt2);background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:16px";
+    empty.innerHTML='<div style="font-size:32px;margin-bottom:10px">📡</div>'
+      +'<div style="font-weight:600;margin-bottom:6px">No data yet</div>'
+      +'<div style="font-size:12px">Tap <strong>Sync</strong> to load bookings from your Google Sheet.</div>';
+    container.appendChild(empty);
+  }
+
   // Show 5:00 to 23:30 — 38 slots
   const vis=SLOTS.slice(0,38);
   const cols="90px "+vis.map(()=>"32px").join(" ");
@@ -877,7 +887,9 @@ async function syncAll(){
 // Auto-pull on load (silent, background)
 async function autoPull(){
   if(!WEBAPP_URL) return;
-  if(Date.now()-lastPullTime < PULL_INTERVAL_MS) return; // already fresh
+  // Always pull if we have no sheet data, otherwise respect the interval
+  const hasData = sheetBookings.length > 0;
+  if(hasData && Date.now()-lastPullTime < PULL_INTERVAL_MS) return;
   try{
     const from=dateStr(daysAgo(90)), to=dateStr(daysAhead(30));
     const r=await fetch(`${WEBAPP_URL}?action=getBookings&from=${from}&to=${to}`);
@@ -914,30 +926,32 @@ function tipConflict(e,bks){
 }
 
 function showConflict(bks){
-  document.getElementById("detailContent").innerHTML=`
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-      <div style="width:36px;height:36px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:18px">⚠️</div>
-      <div>
-        <div style="font-size:16px;font-weight:700;color:#92400e">Duplicate Booking</div>
-        <div style="font-size:12px;color:var(--txt2)">${bks.length} bookings overlap on this slot</div>
-      </div>
-    </div>
-    ${bks.map((b,i)=>{
-      const cls={OFFLINE:"mode-offline",HUDLE:"mode-hudle",PLAYO:"mode-playo",DISTRICT:"mode-district"}[b.mode]||"mode-offline";
-      const isSheet=String(b.id||"").startsWith("sheet_");
-      return \`<div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px;border:1px solid #fcd34d">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span style="font-weight:700">${b.name||"—"}</span>
-          <span class="bi-badge \${cls}">\${b.mode}</span>
-        </div>
-        <div style="font-size:12px;color:var(--txt2)">\${b.start||"—"} – \${b.end||"—"} · \${b.phone||"No phone"}</div>
-        <div style="font-size:12px;color:var(--txt2);margin-top:2px">\${b.amount?"₹"+b.amount:""}\${b.payment?" · "+b.payment:""}</div>
-        <div style="font-size:11px;margin-top:6px;color:\${isSheet?"#22c55e":"#f59e0b"}">\${isSheet?"✓ From sheet":b.synced?"✓ Synced":"○ Pending sync"}</div>
-        \${!isSheet?\`<button onclick="deleteBooking(\${b.id})" style="margin-top:8px;padding:6px 12px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer">Delete</button>\`:""}
-      </div>\`;
-    }).join("")}
-    <div style="height:8px"></div>
-  `;
+  const rows=bks.map(function(b){
+    const cls={OFFLINE:"mode-offline",HUDLE:"mode-hudle",PLAYO:"mode-playo",DISTRICT:"mode-district"}[b.mode]||"mode-offline";
+    const isSheet=String(b.id||"").startsWith("sheet_");
+    const delBtn=!isSheet?'<button onclick="deleteBooking('+b.id+')" style="margin-top:8px;padding:6px 12px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer">Delete</button>':"";
+    const syncLbl=isSheet?"✓ From sheet":b.synced?"✓ Synced":"○ Pending sync";
+    const syncClr=isSheet||b.synced?"#22c55e":"#f59e0b";
+    return '<div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px;border:1px solid #fcd34d">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<span style="font-weight:700">'+(b.name||"—")+'</span>'
+      +'<span class="bi-badge '+cls+'">'+b.mode+'</span>'
+      +'</div>'
+      +'<div style="font-size:12px;color:var(--txt2)">'+(b.start||"—")+" – "+(b.end||"—")+" · "+(b.phone||"No phone")+'</div>'
+      +'<div style="font-size:12px;color:var(--txt2);margin-top:2px">'+(b.amount?"₹"+b.amount:"")+(b.payment?" · "+b.payment:"")+'</div>'
+      +'<div style="font-size:11px;margin-top:6px;color:'+syncClr+'">'+syncLbl+'</div>'
+      +delBtn
+      +'</div>';
+  }).join("");
+  document.getElementById("detailContent").innerHTML=
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">'
+    +'<div style="width:36px;height:36px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:18px">⚠️</div>'
+    +'<div>'
+    +'<div style="font-size:16px;font-weight:700;color:#92400e">Duplicate Booking</div>'
+    +'<div style="font-size:12px;color:var(--txt2)">'+bks.length+' bookings overlap on this slot</div>'
+    +'</div></div>'
+    +rows
+    +'<div style="height:8px"></div>';
   document.getElementById("detailOverlay").classList.add("show");
   document.getElementById("detailSheet").classList.add("open");
 }
