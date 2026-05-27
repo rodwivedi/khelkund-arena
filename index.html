@@ -827,21 +827,38 @@ async function syncAll(){
   // 1. PUSH: send unsynced local bookings to sheet
   const pending=bookings.filter(b=>!b.synced);
   if(pending.length){
-    try{
-      const r=await fetch(WEBAPP_URL,{
-        method:"POST",
-        mode: "no-cors",
-        body:{bookings:pending}
-      });
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      const res=await r.json();
-      if(res.ok){
-        bookings=bookings.map(b=>pending.find(u=>u.id===b.id)?{...b,synced:true}:b);
-        save();
-        pushOk=true;
+    for (let bk of pending) {
+      const formData = new FormData();
+      formData.append("date", bk.date);
+      formData.append("sport", bk.sport);
+      formData.append("court", bk.court);
+      formData.append("start", bk.start);
+      formData.append("end", bk.end);
+      formData.append("name", bk.name);
+      formData.append("phone", bk.phone);
+      formData.append("email", bk.email);
+      formData.append("shoes", bk.shoes);
+      formData.append("rackets", bk.rackets);
+      formData.append("amount", bk.amount);
+      formData.append("mode", bk.mode);
+      formData.append("payment", bk.payment);
+
+      try{
+        const r=await fetch(WEBAPP_URL,{
+          method:"POST",
+          mode: "no-cors",
+          body: formData
+        });
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        const res=await r.json();
+        if(res.ok){
+          bookings=bookings.map(b=>pending.find(u=>u.id===b.id)?{...b,synced:true}:b);
+          save();
+          pushOk=true;
+        }
+      }catch(err){
+        console.error("Push failed:",err);
       }
-    }catch(err){
-      console.error("Push failed:",err);
     }
   } else {
     pushOk=true; // nothing to push
